@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Newport OST Data Mapping Tool</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0ede8;min-height:100vh;padding:16px;}
+.wrap{max-width:620px;margin:0 auto;}
+.card{background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:12px;padding:18px 20px;margin-bottom:12px;}
+.dark-card{background:#251345;border:none;border-radius:12px;padding:18px 20px;margin-bottom:12px;}
+h1{color:#fff;font-size:20px;font-weight:600;margin-bottom:8px;line-height:1.3;}
+.dots{display:flex;gap:4px;margin-bottom:14px;}
+.dot{height:3px;flex:1;border-radius:2px;}
+.section-title{font-size:14px;font-weight:600;color:#251345;margin-bottom:3px;}
+.section-sub{font-size:12px;color:#6B6B8A;margin-bottom:10px;line-height:1.5;}
+.check-row{display:flex;gap:8px;cursor:pointer;margin-bottom:8px;align-items:flex-start;}
+.check-box{width:18px;height:18px;border-radius:4px;border:2px solid;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:background 0.1s;}
+.check-lbl{font-size:13px;color:#251345;line-height:1.4;}
+.check-desc{font-size:11px;color:#6B6B8A;margin-top:1px;line-height:1.3;}
+input[type=text],textarea{width:100%;padding:9px 12px;border:1px solid rgba(0,0,0,0.2);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:#251345;resize:vertical;outline:none;}
+input[type=text]:focus,textarea:focus{border-color:#685faa;}
+.prog-bar{background:#e8e5f0;border-radius:3px;height:5px;margin-bottom:16px;}
+.prog-fill{height:5px;border-radius:3px;transition:width 0.25s;}
+.cat-header{border-radius:8px;padding:14px 16px;margin-bottom:12px;}
+.rating-row{background:#f5f3fb;border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.rating-lbl{font-size:12px;font-weight:600;color:#251345;margin-bottom:7px;}
+.rating-btns{display:flex;gap:5px;flex-wrap:wrap;}
+.r-btn{padding:4px 10px;border-radius:6px;border:2px solid;background:transparent;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.1s;}
+.barrier-row{display:flex;gap:8px;cursor:pointer;margin-bottom:8px;align-items:flex-start;}
+.b-box{width:16px;height:16px;border-radius:3px;border:2px solid #f58430;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;}
+.btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;color:#fff;margin-bottom:8px;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-outline{width:100%;padding:11px;border:1px solid rgba(0,0,0,0.2);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#6B6B8A;background:transparent;margin-bottom:8px;}
+.step-badge{display:inline-block;background:#f0ede8;border-radius:8px;padding:3px 10px;font-size:11px;color:#6B6B8A;margin-bottom:14px;}
+.two-btn{display:grid;grid-template-columns:1fr 2fr;gap:8px;}
+.report-section{border-radius:0 12px 12px 0;margin-bottom:12px;padding:16px 18px;}
+.r-item{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.07);}
+.r-item:last-child{border-bottom:none;}
+.r-label{font-size:12px;color:#251345;flex:1;padding-right:8px;line-height:1.4;}
+.r-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;flex-shrink:0;}
+.pill{border-radius:4px;padding:2px 7px;font-size:10px;margin-right:3px;margin-bottom:3px;display:inline-block;background:#fff8e4;color:#633806;}
+.notes-box{border-top:1px solid rgba(0,0,0,0.08);margin-top:12px;padding-top:12px;}
+.info-icon{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#251345;margin-bottom:5px;}
+.hidden{display:none;}
+@media print{
+  body{background:#fff;padding:0;}
+  .no-print{display:none!important;}
+  .card,.dark-card{box-shadow:none;border:1px solid #ddd;}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+const B={pink:"#e83f84",orange:"#f58430",yellow:"#ffd839",teal:"#2cba9d",blue:"#37c5eb",purple:"#685faa",dark:"#251345",mid:"#6B6B8A"};
+const RL=["","Very easy","Easy","Somewhat hard","Quite hard","Cannot share"];
+const RC=["","#2cba9d","#37c5eb","#ffd839","#f58430","#e83f84"];
+
+const OW=[
+  {id:"afterschool",l:"Afterschool",d:"Supervised activities directly after the school day"},
+  {id:"before_school",l:"Before school",d:"Structured care or enrichment before the school day starts"},
+  {id:"summer",l:"Summer learning or enrichment",d:"Academic and experiential programs during school breaks"},
+  {id:"vacation",l:"Vacation academies or expanded learning",d:"Programs during shorter breaks like February or April vacation"},
+];
+const OF=[
+  {id:"comprehensive",l:"Comprehensive youth development",d:"Mix of academics, wellness, and enrichment"},
+  {id:"cclc",l:"21st Century Community Learning Center",d:"Federally designated under ESEA"},
+  {id:"stem",l:"STEM or hands-on science and technology"},
+  {id:"sports_arts",l:"Sports, arts, or specialty enrichment"},
+  {id:"mentoring",l:"Mentoring or social-emotional focus"},
+  {id:"college_career",l:"College access or career pathways"},
+  {id:"childcare",l:"School-age childcare (licensed)"},
+];
+const OWH=[
+  {id:"general",l:"General school-age youth"},
+  {id:"mll",l:"Multi-language learners or English language learners"},
+  {id:"iep",l:"Youth with IEPs or 504 plans"},
+  {id:"housing",l:"Youth experiencing housing instability"},
+  {id:"referred",l:"Youth referred by school or district"},
+  {id:"work_based",l:"Work-based learning or career exploration (older youth)"},
+];
+const FU=[
+  "van Beuren Charitable Foundation (vBCF)",
+  "Federal 21st Century Learning Centers",
+  "RI Department of Education (RIDE)",
+  "RI Department of Human Services",
+  "United Way",
+  "Local city or town government",
+  "Other private foundations",
+  "Self-funded or no external reporting required",
+];
+const CATS=[
+  {id:"reach",l:"Program Reach",c:B.pink,d:"How many young people you serve and in what capacity",s:[
+    {id:"total_enrollment",l:"Total enrollment",d:"How many students registered or signed up"},
+    {id:"unduplicated",l:"Unduplicated unique youth count",d:"Each student counted once regardless of sessions attended"},
+    {id:"total_attendance_instances",l:"Total attendance instances",d:"Total visits across all students combined"},
+    {id:"capacity",l:"Licensed or permitted capacity",d:"Maximum slots your facility or license allows"},
+    {id:"waitlist",l:"Current waitlist size"},
+    {id:"new_vs_returning",l:"New vs returning participant breakdown"},
+  ]},
+  {id:"dosage",l:"Program Dosage and Model",c:B.orange,d:"How much programming you deliver and how it's structured",s:[
+    {id:"weeks_days",l:"Total program weeks or days per year"},
+    {id:"hours_per_student",l:"Hours per student per week"},
+    {id:"total_hours",l:"Total hours of programming delivered"},
+    {id:"sessions_per_student",l:"Sessions attended per student on average"},
+    {id:"no_cost",l:"Whether program is offered at no cost to families"},
+  ]},
+  {id:"demographics",l:"Demographics",c:B.yellow,d:"Who your participants are — identity, need, and background",s:[
+    {id:"race_ethnicity",l:"Race and ethnicity"},
+    {id:"gender",l:"Gender or gender identity"},
+    {id:"frl",l:"% free or reduced price lunch"},
+    {id:"mll_pct",l:"% multi-language learners or ELL"},
+    {id:"iep_pct",l:"% students with IEP or 504 plans"},
+    {id:"housing_instability",l:"% students experiencing housing instability or homelessness"},
+    {id:"age_grade",l:"Age or grade range served"},
+  ]},
+  {id:"attendance",l:"Attendance and Retention",c:B.teal,d:"How consistently students show up and come back",s:[
+    {id:"overall_rate",l:"Overall attendance rate",d:"% of possible sessions attended"},
+    {id:"light_dosage",l:"% attending 15+ hours (light dosage)"},
+    {id:"moderate_dosage",l:"% attending 45+ hours (moderate dosage)"},
+    {id:"high_dosage",l:"% attending 90+ hours (high dosage)"},
+    {id:"retention_rate",l:"Year-over-year retention rate",d:"% of participants who returned from a prior year"},
+  ]},
+  {id:"academic",l:"Academic and Learning Outcomes",c:B.blue,d:"Evidence of learning growth connected to your program",s:[
+    {id:"pre_post_literacy",l:"Pre and post assessment — literacy"},
+    {id:"pre_post_math",l:"Pre and post assessment — math"},
+    {id:"school_attendance",l:"School day attendance rates for program participants"},
+    {id:"grade_improvement",l:"Grade improvement or teacher-reported academic growth"},
+    {id:"standardized_test",l:"Standardized test score changes (RICAS or similar)"},
+    {id:"homework_tutoring",l:"Homework completion or tutoring hours"},
+  ]},
+  {id:"sel",l:"Social-Emotional Outcomes",c:B.purple,d:"Confidence, belonging, relationships, and emotional development",s:[
+    {id:"sel_survey",l:"Standardized SEL survey",d:"e.g. NYOI, DESSA, or similar tool"},
+    {id:"staff_observation",l:"Staff observation rubric or notes"},
+    {id:"youth_belonging",l:"Youth self-report on belonging or confidence"},
+    {id:"trusted_adult",l:"Youth self-report on trusted adult relationships"},
+  ]},
+  {id:"family",l:"Family and Caregiver Engagement",c:B.pink,d:"How you involve and support families",s:[
+    {id:"family_event_attendance",l:"Family event attendance counts"},
+    {id:"caregiver_survey",l:"Caregiver satisfaction survey"},
+    {id:"multilingual_outreach",l:"Multilingual family outreach activities"},
+    {id:"family_programming",l:"Family referrals or family programming participation"},
+  ]},
+  {id:"health",l:"Health, Wellness, and Physical Activity",c:B.teal,d:"Physical activity, wellness programming, and nutrition",s:[
+    {id:"physical_activity_hours",l:"Hours of physical activity per student"},
+    {id:"wellness_programs",l:"Participation in specific wellness programming"},
+    {id:"meals_snacks",l:"Meals or snacks provided per student"},
+  ]},
+  {id:"leadership",l:"Youth Leadership and Pathways",c:B.orange,d:"Leadership roles, internships, and postsecondary exposure",s:[
+    {id:"youth_leaders",l:"Youth in leadership roles within the program"},
+    {id:"paid_internships",l:"Paid internships or stipended positions"},
+    {id:"college_visits",l:"College visits or postsecondary exposure activities"},
+    {id:"career_credentials",l:"Career credential or work-based learning hours"},
+  ]},
+  {id:"transportation",l:"Transportation and Access",c:B.blue,d:"How students get to and from your program",s:[
+    {id:"transport_provided",l:"Whether transportation to/from program is provided"},
+    {id:"transport_cost",l:"Annual cost of transportation",d:"Own vans, contracted buses, or informal arrangements"},
+    {id:"vehicles_owned",l:"Number of vans or buses owned or regularly used"},
+    {id:"transport_dependent",l:"Students who would not attend without transportation support"},
+  ]},
+  {id:"quality",l:"Program Quality and Staffing",c:B.purple,d:"How you measure and improve program quality",s:[
+    {id:"brightstars",l:"BrightStars or QRIS rating"},
+    {id:"ripqa",l:"RIPQA or Weikart assessment results"},
+    {id:"staff_ratios",l:"Staff-to-student ratios"},
+    {id:"pd_hours",l:"Staff professional development hours"},
+  ]},
+  {id:"partnerships",l:"Partnerships and Data Agreements",c:B.pink,d:"Formal relationships with schools and other organizations",s:[
+    {id:"mou_agreements",l:"Active MOUs or data sharing agreements with schools"},
+    {id:"partner_orgs",l:"Partner organizations delivering programming"},
+    {id:"district_data",l:"Data received from school district about shared students"},
+  ]},
+];
+const BARRIERS=[
+  {id:"timing",l:"Timing mismatch",d:"Data isn't finalized when our vBCF report is due"},
+  {id:"privacy",l:"Student privacy",d:"Not confident student privacy can be fully protected in sharing"},
+  {id:"capacity",l:"Staff capacity",d:"Takes significant staff time to isolate vBCF-funded work from everything else we track"},
+  {id:"federal",l:"Federal funder restrictions",d:"A federal funder restricts how this data can be shared outside their reporting structure"},
+  {id:"format",l:"Format or system issues",d:"Data exists but would require significant cleanup or conversion to be shareable"},
+  {id:"isolation",l:"Hard to isolate vBCF students",d:"Genuinely hard to separate which students or costs are connected to vBCF funding specifically"},
+  {id:"trust",l:"Uncertainty about data use",d:"Not sure how the data would be used or who would see it"},
+  {id:"no_tool",l:"No reliable collection tool",d:"Tracked informally or inconsistently — no system that makes sharing reliable"},
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let S={
+  phase:"intro",
+  orgName:"",orgWhen:[],orgFocus:[],orgWho:[],funders:[],
+  catIdx:0,
+  subSel:{},subWI:{},ratings:{},barriers:{},barrierOther:{},catNotes:{},
+  skipped:[],report:null
+};
+
+function sk(c,s){return c+"."+s;}
+function getRating(c,s){return S.ratings[sk(c,s)]||0;}
+function getBarriers(c,s){return S.barriers[sk(c,s)]||[];}
+function toggle(arr,v){return arr.includes(v)?arr.filter(x=>x!==v):[...arr,v];}
+
+function canAdvance(){
+  const cat=CATS[S.catIdx];
+  const subs=S.subSel[cat.id]||[];
+  const wi=(S.subWI[cat.id]||"").trim();
+  const all=[...subs,...(wi?["writeIn"]:[])];
+  if(!all.length)return true;
+  for(const sid of all){
+    const r=getRating(cat.id,sid);
+    if(!r)return false;
+    if(r>=3){
+      const b=getBarriers(cat.id,sid);
+      const bo=(S.barrierOther[sk(cat.id,sid)]||"").trim();
+      if(!b.length&&!bo)return false;
+    }
+  }
+  return true;
+}
+
+function buildReport(){
+  const easy=[],hard=[];
+  for(const c of CATS){
+    const subs=S.subSel[c.id]||[];
+    const wi=(S.subWI[c.id]||"").trim();
+    const all=[...subs,...(wi?["writeIn"]:[])];
+    for(const sid of all){
+      const subDef=c.s.find(x=>x.id===sid);
+      const label=sid==="writeIn"?c.l+" — "+wi:c.l+" — "+(subDef?subDef.l:sid);
+      const r=getRating(c.id,sid);
+      if(!r)continue;
+      const bs=getBarriers(c.id,sid).map(b=>{const f=BARRIERS.find(x=>x.id===b);return f?f.l:b;}).filter(Boolean);
+      const bo=(S.barrierOther[sk(c.id,sid)]||"").trim();
+      if(bo)bs.push("Other: "+bo);
+      if(r<=2)easy.push({label,rating:r});
+      else hard.push({label,rating:r,barriers:bs});
+    }
+  }
+  const notes={};
+  for(const c of CATS){const n=(S.catNotes[c.id]||"").trim();if(n)notes[c.l]=n;}
+  S.report={
+    version:"1.0",generatedAt:new Date().toISOString(),
+    org:{name:S.orgName,when:S.orgWhen,focus:S.orgFocus,who:S.orgWho,funders:S.funders},
+    easy,hard,notCollected:S.skipped,notes
+  };
+  S.phase="complete";
+  render();
+}
+
+function downloadJSON(){
+  const blob=new Blob([JSON.stringify(S.report,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  const safe=(S.report.org.name||"org").replace(/[^a-z0-9]/gi,"_").toLowerCase();
+  a.download="ost_data_"+safe+"_"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadPDF(){
+  const r=S.report;
+  const date=new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+  const wl={afterschool:"Afterschool",before_school:"Before school",summer:"Summer",vacation:"Vacation/ELT"};
+  const fl={comprehensive:"Comprehensive",cclc:"21st CCLC",stem:"STEM",sports_arts:"Sports/Arts",mentoring:"Mentoring",college_career:"College/Career",childcare:"Childcare"};
+  const notesKeys=Object.keys(r.notes||{});
+  const w=window.open("","_blank");
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>OST Data Map — '+r.org.name+'</title><style>body{font-family:Arial,sans-serif;font-size:13px;color:#111;max-width:700px;margin:0 auto;padding:24px;}h1{font-size:20px;font-weight:700;color:#251345;margin:0 0 3px;}  .meta{font-size:12px;color:#555;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #251345;line-height:1.6;}h2{font-size:13px;font-weight:700;margin:18px 0 8px;padding:7px 12px;border-radius:4px;}  .easy-h{background:#e1f5ee;color:#085041;}.hard-h{background:#fff8e4;color:#633806;}.skip-h{background:#f5f5f5;color:#555;}.notes-h{background:#efedf6;color:#3C3489;}  .item{padding:5px 12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}.item:last-child{border-bottom:none;}  .item-l{flex:1;line-height:1.4;}.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;white-space:nowrap;}  .badge-e{background:#e1f5ee;color:#085041;}.badge-h{background:#fff8e4;color:#633806;}  .barriers{font-size:11px;color:#888;margin-top:2px;}.note-block{padding:7px 12px;border-bottom:1px solid #eee;}  .nc{font-size:12px;font-weight:700;color:#251345;margin-bottom:2px;}.nt{font-size:12px;color:#555;font-style:italic;line-height:1.5;}</style></head><body>');
+  w.document.write('<h1>Newport OST Data Map</h1><div class="meta"><strong>'+r.org.name+'</strong> &nbsp;·&nbsp; '+date+'<br>Program type: '+r.org.when.map(x=>wl[x]||x).join(", ")+'<br>Core focus: '+r.org.focus.map(x=>fl[x]||x).join(", ")+'<br>Reports data to: '+r.org.funders.join(", ")+'</div>');
+  if(r.easy.length){w.document.write('<h2 class="easy-h">Ready to share — '+r.easy.length+' data types</h2>'+r.easy.map(i=>'<div class="item"><span class="item-l">'+i.label+'</span><span class="badge badge-e">'+i.rating+'/5</span></div>').join(""));}
+  if(r.hard.length){w.document.write('<h2 class="hard-h">Needs problem-solving — '+r.hard.length+' data types</h2>'+r.hard.map(i=>'<div class="item"><div><div class="item-l">'+i.label+'</div>'+(i.barriers.length?'<div class="barriers">Barriers: '+i.barriers.join(" · ")+'</div>':'')+'</div><span class="badge badge-h">'+i.rating+'/5</span></div>').join(""));}
+  if(r.notCollected.length){w.document.write('<h2 class="skip-h">Not currently collected</h2>'+r.notCollected.map(c=>'<div class="item"><span class="item-l">'+c+'</span></div>').join(""));}
+  if(notesKeys.length){w.document.write('<h2 class="notes-h">Additional notes</h2>'+notesKeys.map(k=>'<div class="note-block"><div class="nc">'+k+'</div><div class="nt">'+r.notes[k]+'</div></div>').join(""));}
+  w.document.write('</body></html>');
+  w.document.close();
+  setTimeout(()=>w.print(),400);
+}
+
+function emailReport(){
+  const r=S.report;
+  const sub=encodeURIComponent("OST Data Map — "+r.org.name);
+  const body=encodeURIComponent("Hi Shawn,\n\nHere is our data map from the Newport OST Convening.\n\nOrg: "+r.org.name+"\nReady to share: "+r.easy.length+" data types\nNeeds problem-solving: "+r.hard.length+" data types\n\nFull JSON report:\n\n"+JSON.stringify(r,null,2));
+  window.open("mailto:shawn@throughlinelearning.com?subject="+sub+"&body="+body);
+}
+
+// ── Rendering helpers ──────────────────────────────────────────────────────
+function checkHTML(opts,selected,color,key){
+  return opts.map(o=>{
+    const chk=selected.includes(o.id);
+    return '<div class="check-row" onclick="S.'+key+'=S.'+key+'.includes(\''+o.id+'\')?S.'+key+'.filter(x=>x!==\''+o.id+'\'):[...S.'+key+',\''+o.id+'\'];render();">'+
+      '<div class="check-box" style="border-color:'+color+';background:'+(chk?color:"transparent")+'">'+(chk?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2" stroke="#fff" stroke-width="2" fill="none"/></svg>':'')+'</div>'+
+      '<div><div class="check-lbl">'+o.l+'</div>'+(o.d?'<div class="check-desc">'+o.d+'</div>':'')+'</div></div>';
+  }).join("");
+}
+
+function funderHTML(selected){
+  return FU.map(f=>{
+    const chk=selected.includes(f);
+    const ef=f.replace(/'/g,"\\'");
+    return '<div class="check-row" onclick="S.funders=S.funders.includes(\''+ef+'\')?S.funders.filter(x=>x!==\''+ef+'\'):[...S.funders,\''+ef+'\'];render();">'+
+      '<div class="check-box" style="border-color:#e83f84;background:'+(chk?"#e83f84":"transparent")+'">'+(chk?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2" stroke="#fff" stroke-width="2" fill="none"/></svg>':'')+'</div>'+
+      '<div class="check-lbl">'+f+'</div></div>';
+  }).join("");
+}
+
+// ── Render phases ──────────────────────────────────────────────────────────
+function render(){
+  const app=document.getElementById("app");
+  if(S.phase==="intro"){app.innerHTML=renderIntro();return;}
+  if(S.phase==="org_info"){app.innerHTML=renderOrgInfo();return;}
+  if(S.phase==="categories"){app.innerHTML=renderCategory();return;}
+  if(S.phase==="complete"){app.innerHTML=renderReport();return;}
+}
+
+function renderIntro(){
+  return '<div class="dark-card">'+
+    '<div class="dots"><div class="dot" style="background:#e83f84"></div><div class="dot" style="background:#f58430"></div><div class="dot" style="background:#ffd839"></div><div class="dot" style="background:#2cba9d"></div><div class="dot" style="background:#37c5eb"></div></div>'+
+    '<h1>Newport OST Data Mapping Tool</h1>'+
+    '<p style="color:#9e98b8;font-size:13px;line-height:1.6;margin-bottom:16px;">This tool helps van Beuren Charitable Foundation understand what data the programs they support are already collecting, and whether any of it could flow more easily to vBCF with minimal burden on your staff.</p>'+
+    '<div style="background:rgba(44,186,157,0.15);border-left:3px solid #2cba9d;border-radius:0 8px 8px 0;padding:11px 13px;margin-bottom:12px;"><div style="color:#2cba9d;font-size:11px;font-weight:700;margin-bottom:3px;">What this is not</div><div style="color:#c4c0d8;font-size:12px;line-height:1.5;">This is not an audit. vBCF is not asking you to collect anything new. They want to understand what you already have.</div></div>'+
+    '<div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:12px;margin-bottom:20px;"><div style="color:#ffd839;font-size:11px;font-weight:700;margin-bottom:8px;">You will be asked about</div>'+
+    ["Your organization's programs and focus areas","Specific data types you collect across 12 categories","How easy or hard each would be to share with vBCF","Additional context the form doesn't capture"].map((t,i)=>'<div style="display:flex;gap:8px;margin-bottom:6px;"><div style="width:18px;height:18px;border-radius:50%;background:#ffd839;color:#251345;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">'+(i+1)+'</div><div style="color:#fff;font-size:12px;line-height:1.5;">'+t+'</div></div>').join("")+
+    '</div><button class="btn" style="background:#e83f84;" onclick="S.phase=\'org_info\';render();">Get started</button></div>';
+}
+
+function renderOrgInfo(){
+  const canGo=S.orgName.trim()&&S.orgWhen.length>0&&S.orgFocus.length>0&&S.orgWho.length>0&&S.funders.length>0;
+  return '<div class="step-badge">Step 1 of 2 — About your organization</div>'+
+    '<div class="card"><div class="section-title">Organization name</div><input type="text" value="'+S.orgName.replace(/"/g,'&quot;')+'" placeholder="e.g. Boys and Girls Club, FabNewport..." oninput="S.orgName=this.value;" style="margin-top:5px;"/></div>'+
+    '<div class="card"><div class="section-title">When does your program run?</div><div class="section-sub">Select all that apply</div>'+checkHTML(OW,S.orgWhen,B.teal,"orgWhen")+'</div>'+
+    '<div class="card"><div class="section-title">What best describes your core focus?</div><div class="section-sub">Select all that apply</div>'+checkHTML(OF,S.orgFocus,B.purple,"orgFocus")+'</div>'+
+    '<div class="card"><div class="section-title">Who does your program primarily serve?</div><div class="section-sub">Select all that apply</div>'+checkHTML(OWH,S.orgWho,B.orange,"orgWho")+'</div>'+
+    '<div class="card"><div class="section-title">Who do you currently report data to?</div><div class="section-sub">Select all that apply</div>'+funderHTML(S.funders)+'</div>'+
+    '<button class="btn" style="background:'+(canGo?"#e83f84":"#ccc")+';" '+(canGo?"":"disabled")+'onclick="S.phase=\'categories\';render();">Continue to data mapping</button>';
+}
+
+function renderCategory(){
+  const cat=CATS[S.catIdx];
+  const pct=Math.round(((S.catIdx+1)/CATS.length)*100);
+  const subs=S.subSel[cat.id]||[];
+  const wi=S.subWI[cat.id]||"";
+  const allSubIds=[...subs,...(wi.trim()?["writeIn"]:[])];
+  const hardSubs=allSubIds.filter(sid=>getRating(cat.id,sid)>=3);
+  const isLast=S.catIdx===CATS.length-1;
+  const ready=canAdvance();
+
+  let html='<div class="step-badge no-print">Step 2 of 2 — Category '+(S.catIdx+1)+' of '+CATS.length+'</div>'+
+    '<div class="prog-bar no-print"><div class="prog-fill" style="width:'+pct+'%;background:'+cat.c+';"></div></div>'+
+    '<div class="cat-header" style="background:'+cat.c+'"><div style="color:#fff;font-size:16px;font-weight:600;">'+cat.l+'</div><div style="color:rgba(255,255,255,0.85);font-size:12px;margin-top:3px;">'+cat.d+'</div></div>'+
+    '<div class="card"><div class="section-title">Which of these does your organization collect?</div><div class="section-sub">Select all that apply. Leave blank if none apply.</div>'+
+    cat.s.map(sub=>{
+      const chk=subs.includes(sub.id);
+      return '<div class="check-row" onclick="var s=[...(S.subSel[\''+cat.id+'\']||[])];S.subSel[\''+cat.id+'\']=s.includes(\''+sub.id+'\')?s.filter(x=>x!==\''+sub.id+'\'):[...s,\''+sub.id+'\'];render();">'+
+        '<div class="check-box" style="border-color:'+cat.c+';background:'+(chk?cat.c:"transparent")+'">'+(chk?'<svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2" stroke="#fff" stroke-width="2" fill="none"/></svg>':'')+'</div>'+
+        '<div><div class="check-lbl">'+sub.l+'</div>'+(sub.d?'<div class="check-desc">'+sub.d+'</div>':'')+'</div></div>';
+    }).join("")+
+    '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,0.08);"><div style="font-size:12px;color:#6B6B8A;margin-bottom:5px;">Other data you collect in this area (write in)</div>'+
+    '<input type="text" value="'+wi.replace(/"/g,'&quot;')+'" placeholder="Describe another data type you track..." oninput="S.subWI[\''+cat.id+'\']=this.value;render();"/></div></div>';
+
+  if(allSubIds.length>0){
+    html+='<div class="card"><div class="section-title">How easy would each be to share with vBCF?</div><div class="section-sub">1 = very easy. 5 = essentially impossible right now.</div>'+
+      allSubIds.map(sid=>{
+        const subDef=cat.s.find(x=>x.id===sid);
+        const label=sid==="writeIn"?wi:(subDef?subDef.l:sid);
+        const cur=getRating(cat.id,sid);
+        return '<div class="rating-row"><div class="rating-lbl">'+label+'</div><div class="rating-btns">'+
+          [1,2,3,4,5].map(v=>{
+            const sel=cur===v;
+            return '<button class="r-btn" style="border-color:'+RC[v]+';background:'+(sel?RC[v]:"transparent")+';color:'+(sel?(v===3?"#251345":"#fff"):RC[v])+'" onclick="S.ratings[\''+sk(cat.id,sid)+'\']='+v+';render();">'+v+' '+RL[v]+'</button>';
+          }).join("")+
+          '</div></div>';
+      }).join("")+'</div>';
+  }
+
+  if(hardSubs.length>0){
+    html+='<div class="card" style="border-left:3px solid #f58430;border-radius:0 12px 12px 0;"><div class="section-title">What makes these hard to share?</div><div class="section-sub">Select all barriers that apply. You must pick at least one or add a note.</div>'+
+      hardSubs.map(sid=>{
+        const subDef=cat.s.find(x=>x.id===sid);
+        const label=sid==="writeIn"?wi:(subDef?subDef.l:sid);
+        const curB=getBarriers(cat.id,sid);
+        const curO=S.barrierOther[sk(cat.id,sid)]||"";
+        return '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(0,0,0,0.08);">'+
+          '<div style="font-size:12px;font-weight:700;color:#f58430;margin-bottom:7px;">'+label+'</div>'+
+          BARRIERS.map(b=>{
+            const chk=curB.includes(b.id);
+            return '<div class="barrier-row" onclick="var c=[...(S.barriers[\''+sk(cat.id,sid)+'\']||[])];S.barriers[\''+sk(cat.id,sid)+'\']=c.includes(\''+b.id+'\')?c.filter(x=>x!==\''+b.id+'\'):[...c,\''+b.id+'\'];render();">'+
+              '<div class="b-box" style="background:'+(chk?"#f58430":"transparent")+'">'+(chk?'<svg width="9" height="9" viewBox="0 0 9 9"><polyline points="1.5,4.5 3.5,7 7.5,2" stroke="#fff" stroke-width="2" fill="none"/></svg>':'')+'</div>'+
+              '<div><div style="font-size:12px;font-weight:600;color:#251345;">'+b.l+'</div><div style="font-size:11px;color:#6B6B8A;">'+b.d+'</div></div></div>';
+          }).join("")+
+          '<div style="margin-top:7px;"><div style="font-size:11px;color:#6B6B8A;margin-bottom:4px;">Other reason (write in)</div>'+
+          '<input type="text" value="'+curO.replace(/"/g,'&quot;')+'" placeholder="Any other reason..." oninput="S.barrierOther[\''+sk(cat.id,sid)+'\']=this.value;render();"/></div></div>';
+      }).join("")+'</div>';
+  }
+
+  const catNote=S.catNotes[cat.id]||"";
+  html+='<div class="card"><div class="info-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="'+cat.c+'" stroke-width="1.5"/><line x1="7" y1="6" x2="7" y2="10" stroke="'+cat.c+'" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="4.2" r="0.8" fill="'+cat.c+'"/></svg>Anything else vBCF should know about this category?</div>'+
+    '<div style="font-size:11px;color:#6B6B8A;margin-bottom:6px;line-height:1.5;">Use this space for context the form doesn\'t capture — nuance, caveats, or anything that would help vBCF interpret what you\'ve shared.</div>'+
+    '<textarea rows="3" placeholder="Optional — add any notes or context here..." oninput="S.catNotes[\''+cat.id+'\']=this.value;">'+catNote+'</textarea></div>';
+
+  html+='<div class="two-btn no-print">'+
+    '<button class="btn-outline" onclick="S.skipped=[...S.skipped,\''+cat.id+'\'];S.subSel[\''+cat.id+'\']=[];S.subWI[\''+cat.id+'\']=\'\';'+(isLast?"buildReport();":'S.catIdx='+(S.catIdx+1)+';render();')+'">We don\'t collect any of this</button>'+
+    '<button class="btn" style="background:'+(ready?cat.c:"#ccc")+';color:'+(cat.c===B.yellow?"#251345":"#fff")+';" '+(ready?"":"disabled")+' onclick="'+(isLast?"buildReport();":'S.catIdx='+(S.catIdx+1)+';render();')+'">'+(isLast?"See my report":"Next category")+'</button></div>';
+
+  return html;
+}
+
+function renderReport(){
+  const r=S.report;
+  const notesKeys=Object.keys(r.notes||{});
+  let html='<div class="dark-card">'+
+    '<div class="dots"><div class="dot" style="background:#e83f84"></div><div class="dot" style="background:#f58430"></div><div class="dot" style="background:#ffd839"></div><div class="dot" style="background:#2cba9d"></div><div class="dot" style="background:#37c5eb"></div></div>'+
+    '<div style="color:#fff;font-size:16px;font-weight:600;margin-bottom:3px;">Data map complete</div>'+
+    '<div style="color:#9e98b8;font-size:12px;">'+r.org.name+'</div></div>';
+
+  if(r.easy.length)html+='<div class="report-section" style="border-left:4px solid #2cba9d;background:#f8fefa;">'+
+    '<div style="color:#2cba9d;font-size:13px;font-weight:700;margin-bottom:4px;">Ready to share — low or no barrier</div>'+
+    '<div style="color:#6B6B8A;font-size:12px;margin-bottom:10px;">These data types are already in hand and could move to vBCF with minimal effort.</div>'+
+    r.easy.map(i=>'<div class="r-item"><span class="r-label">'+i.label+'</span><span class="r-badge" style="background:#e1f5ee;color:#085041;">'+i.rating+'/5</span></div>').join("")+'</div>';
+
+  if(r.hard.length)html+='<div class="report-section" style="border-left:4px solid #f58430;background:#fffcf5;">'+
+    '<div style="color:#f58430;font-size:13px;font-weight:700;margin-bottom:4px;">Needs problem-solving</div>'+
+    '<div style="color:#6B6B8A;font-size:12px;margin-bottom:10px;">Real barriers exist for these. Your notes are captured in the download.</div>'+
+    r.hard.map(i=>'<div class="r-item" style="flex-direction:column;align-items:flex-start;"><div style="display:flex;justify-content:space-between;width:100%;"><span class="r-label">'+i.label+'</span><span class="r-badge" style="background:#fff8e4;color:#633806;margin-left:8px;">'+i.rating+'/5</span></div>'+(i.barriers.length?'<div style="margin-top:5px;">'+i.barriers.map(b=>'<span class="pill">'+b+'</span>').join("")+'</div>':'')+'</div>').join("")+'</div>';
+
+  if(r.notCollected.length)html+='<div class="report-section" style="border-left:4px solid #ddd;background:#fafafa;">'+
+    '<div style="color:#6B6B8A;font-size:13px;font-weight:700;margin-bottom:8px;">Not currently collected</div>'+
+    r.notCollected.map(c=>'<div style="font-size:12px;color:#6B6B8A;padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.06);">'+c+'</div>').join("")+'</div>';
+
+  if(notesKeys.length)html+='<div class="report-section" style="border-left:4px solid #685faa;background:#f9f8fe;">'+
+    '<div style="color:#685faa;font-size:13px;font-weight:700;margin-bottom:10px;">Your additional notes</div>'+
+    notesKeys.map(k=>'<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,0.07);"><div style="font-size:12px;font-weight:700;color:#251345;margin-bottom:3px;">'+k+'</div><div style="font-size:12px;color:#6B6B8A;line-height:1.5;font-style:italic;">'+r.notes[k]+'</div></div>').join("")+'</div>';
+
+  html+='<div class="dark-card no-print">'+
+    '<div style="color:#fff;font-size:13px;font-weight:600;margin-bottom:5px;">Your report is ready</div>'+
+    '<div style="color:#9e98b8;font-size:12px;line-height:1.6;margin-bottom:14px;">Download as JSON for uploading into the aggregation tool, or save as a PDF to hand to Shawn directly.</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">'+
+    '<button class="btn" style="background:#2cba9d;margin:0;" onclick="downloadJSON();">Download JSON</button>'+
+    '<button class="btn" style="background:#685faa;margin:0;" onclick="downloadPDF();">Save as PDF</button></div>'+
+    '<button class="btn-outline" style="color:#9e98b8;border-color:rgba(255,255,255,0.2);" onclick="emailReport();">Email report to Shawn</button>'+
+    '<div style="font-size:11px;color:#6B6B8A;margin-top:8px;text-align:center;">JSON is for Tool 2. PDF is for your records or to hand in directly.</div></div>';
+
+  return html;
+}
+
+render();
+</script>
+</body>
+</html>
